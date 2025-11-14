@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FastAPI Library Manager</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar style for dark theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1f2937; /* Gray-800 */
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151; /* Gray-700 */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b5563; /* Gray-600 */
+        }
+        /* Custom utility for the main card background */
+        .app-bg {
+            background: linear-gradient(145deg, #1f2937, #111827);
+        }
+        /* Inter font setup */
+        :root {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-blue': '#3b82f6',
+                        'accent-green': '#10b981',
+                        'danger-red': '#ef4444',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen p-4 sm:p-8 flex justify-center">
+
+    <div class="w-full max-w-6xl">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-primary-blue to-accent-green">
+                📚 FastAPI Library Catalog
+            </h1>
+            <p class="text-gray-400 mt-2">Manage your books using the live FastAPI backend.</p>
+        </header>
+
+        <!-- Status Message Box -->
+        <div id="status-message" class="hidden p-4 mb-6 rounded-lg shadow-xl text-sm font-medium transition-all duration-300 transform scale-100"></div>
+
+        <!-- Main Action Buttons -->
+        <div class="flex flex-wrap gap-4 mb-8 p-4 bg-gray-800 rounded-xl shadow-lg justify-center sm:justify-between">
+            <button onclick="document.getElementById('add-book-modal').classList.remove('hidden')"
+                    class="flex items-center px-4 py-2 bg-accent-green text-gray-900 font-semibold rounded-lg shadow-md hover:bg-emerald-500 transition duration-150">
+                <!-- Add Icon (Plus) -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Add New Book
+            </button>
+            <button onclick="fetchBooks()"
+                    class="flex items-center px-4 py-2 bg-primary-blue text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 transition duration-150">
+                <!-- Refresh Icon -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M21.5 2v6h-6"/><path d="M2.5 19h6v-6"/><path d="M22 11.5A10 10 0 0 0 12.5 2C7 2 3.5 5.5 2.4 10.3"/><path d="M2 12.5A10 10 0 0 0 11.5 22C17 22 20.5 18.5 21.6 13.7"/></svg>
+                Refresh List
+            </button>
+            <button onclick="deleteAllBooks()"
+                    class="flex items-center px-4 py-2 bg-danger-red text-white font-semibold rounded-lg shadow-md hover:bg-red-600 transition duration-150">
+                <!-- Trash Icon -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                Delete All Books
+            </button>
+        </div>
+
+        <!-- Book List Container -->
+        <div id="book-list-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <!-- Books will be injected here -->
+            <p class="col-span-full text-center text-gray-500">Loading books...</p>
+        </div>
+
+        <!-- Modals for Forms -->
+        <div id="add-book-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50">
+            <div class="app-bg p-6 rounded-xl shadow-2xl w-full max-w-md">
+                <h2 class="text-2xl font-bold mb-4 border-b pb-2 border-gray-700">Add New Book</h2>
+                <form id="add-book-form" class="space-y-4">
+                    <input type="text" id="add-title" placeholder="Title" required class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 focus:ring-primary-blue focus:border-primary-blue">
+                    <input type="text" id="add-author" placeholder="Author" required class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 focus:ring-primary-blue focus:border-primary-blue">
+                    <input type="number" id="add-copies" placeholder="Available Copies" required min="1" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 focus:ring-primary-blue focus:border-primary-blue">
+                    <div class="flex justify-end gap-3 pt-2">
+                        <button type="button" onclick="document.getElementById('add-book-modal').classList.add('hidden')"
+                                class="px-4 py-2 bg-gray-600 rounded-lg hover:bg-gray-700 transition">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-accent-green text-gray-900 rounded-lg font-semibold hover:bg-emerald-500 transition">Add Book</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="update-book-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50">
+            <div class="app-bg p-6 rounded-xl shadow-2xl w-full max-w-md">
+                <h2 class="text-2xl font-bold mb-4 border-b pb-2 border-gray-700">Update Book Details (ID: <span id="update-id-display"></span>)</h2>
+                <form id="update-book-form" class="space-y-4">
+                    <input type="hidden" id="update-id">
+                    <p class="text-sm text-gray-400 mb-2">Leave fields blank for partial update (PATCH) or fill all for complete update (PUT).</p>
+                    <input type="text" id="update-title" placeholder="New Title (Optional)" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 focus:ring-primary-blue focus:border-primary-blue">
+                    <input type="text" id="update-author" placeholder="New Author (Optional)" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 focus:ring-primary-blue focus:border-primary-blue">
+                    <input type="number" id="update-copies" placeholder="New Available Copies (Optional)" min="0" class="w-full p-3 bg-gray-800 rounded-lg border border-gray-700 focus:ring-primary-blue focus:border-primary-blue">
+                    <div class="flex justify-between gap-3 pt-2">
+                        <button type="button" onclick="document.getElementById('update-book-modal').classList.add('hidden')"
+                                class="px-4 py-2 bg-gray-600 rounded-lg hover:bg-gray-700 transition">Cancel</button>
+                        <div class="flex gap-3">
+                            <button type="button" onclick="handleUpdate(event, true)"
+                                    class="px-4 py-2 bg-primary-blue text-white rounded-lg font-semibold hover:bg-blue-600 transition">
+                                PATCH (Edit)
+                            </button>
+                            <button type="button" onclick="handleUpdate(event, false)"
+                                    class="px-4 py-2 bg-danger-red text-white rounded-lg font-semibold hover:bg-red-600 transition">
+                                PUT (Replace)
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // API Configuration: Assuming the FastAPI server is running on the same host/port.
+        const API_BASE_URL = "http://127.0.0.1:8000";
+
+        // Utility DOM elements
+        const bookListContainer = document.getElementById('book-list-container');
+        const statusMessage = document.getElementById('status-message');
+
+        /**
+         * Displays a status message (success or error) to the user.
+         * @param {string} message The message to display.
+         * @param {boolean} isError True for an error, false for a success/info message.
+         */
+        function showMessage(message, isError = false) {
+            statusMessage.textContent = message;
+            statusMessage.classList.remove('hidden', 'bg-red-700', 'bg-green-700', 'text-red-100', 'text-green-100');
+            
+            if (isError) {
+                statusMessage.classList.add('bg-red-700', 'text-red-100');
+            } else {
+                statusMessage.classList.add('bg-green-700', 'text-green-100');
+            }
+
+            // Hide after 5 seconds
+            setTimeout(() => {
+                statusMessage.classList.add('hidden');
+            }, 5000);
+        }
+
+        /**
+         * Generic function to handle all API fetch calls with retry logic (simulated exponential backoff).
+         */
+        async function apiCall(method, path, body = null, retries = 3) {
+            const url = `${API_BASE_URL}${path}`;
+            const options = {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            };
+
+            if (body) {
+                options.body = JSON.stringify(body);
+            }
+
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        // Handle HTTP errors (4xx, 5xx)
+                        throw new Error(`API Error (${response.status}): ${data.detail || JSON.stringify(data)}`);
+                    }
+                    return data;
+                } catch (error) {
+                    if (i === retries - 1) {
+                        // Throw the error if it was the final retry
+                        throw error;
+                    }
+                    // Wait exponentially before retrying
+                    const delay = Math.pow(2, i) * 1000;
+                    // Log the retry attempt (but don't show to user)
+                    // console.warn(`Retry attempt ${i + 1} for ${method} ${path} after ${delay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        /**
+         * Renders a single book card HTML element.
+         */
+        function createBookCard(book) {
+            const card = document.createElement('div');
+            card.className = 'app-bg p-6 rounded-xl shadow-2xl border-t-4 border-primary-blue hover:shadow-primary-blue/30 transition duration-300';
+            card.innerHTML = `
+                <div class="flex justify-between items-start mb-3">
+                    <h3 class="text-xl font-bold text-accent-green">${book.title}</h3>
+                    <span class="text-lg font-mono px-3 py-1 bg-gray-700 rounded-full">ID: ${book.id}</span>
+                </div>
+                <p class="text-gray-400 mb-4 italic">By ${book.Author}</p>
+                
+                <div class="flex justify-between items-center text-lg font-semibold mb-4">
+                    <span>Copies:</span>
+                    <span class="p-2 rounded-lg ${book.available_copies > 0 ? 'bg-primary-blue/20 text-primary-blue' : 'bg-danger-red/20 text-danger-red'}">
+                        ${book.available_copies}
+                    </span>
+                </div>
+
+                <div class="flex flex-col space-y-3">
+                    <div class="flex gap-2">
+                        <button data-id="${book.id}" data-action="borrow" class="flex-1 px-3 py-2 text-sm bg-primary-blue rounded-lg font-semibold hover:bg-blue-600 disabled:opacity-50 transition" ${book.available_copies === 0 ? 'disabled' : ''}>
+                            Borrow
+                        </button>
+                        <button data-id="${book.id}" data-action="return" class="flex-1 px-3 py-2 text-sm bg-gray-600 rounded-lg font-semibold hover:bg-gray-500 transition">
+                            Return
+                        </button>
+                    </div>
+                    <div class="flex gap-2">
+                        <button data-id="${book.id}" data-action="edit" class="flex-1 px-3 py-2 text-sm bg-amber-500 rounded-lg text-gray-900 font-semibold hover:bg-amber-400 transition">
+                            Edit/Update
+                        </button>
+                        <button data-id="${book.id}" data-action="delete" class="flex-1 px-3 py-2 text-sm bg-danger-red rounded-lg font-semibold hover:bg-red-600 transition">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        /**
+         * Fetches all books and updates the UI.
+         */
+        async function fetchBooks() {
+            bookListContainer.innerHTML = '<p class="col-span-full text-center text-gray-500 py-10">Loading books...</p>';
+            try {
+                const data = await apiCall('GET', '/books');
+                const books = data.books;
+                
+                bookListContainer.innerHTML = ''; // Clear loading message
+
+                if (Object.keys(books).length === 0) {
+                    bookListContainer.innerHTML = '<p class="col-span-full text-center text-gray-400 py-10">The library is currently empty. Add a new book!</p>';
+                    return;
+                }
+
+                Object.values(books).forEach(book => {
+                    const card = createBookCard(book);
+                    bookListContainer.appendChild(card);
+                });
+                
+                attachActionListeners();
+                showMessage("Book list refreshed successfully.", false);
+
+            } catch (error) {
+                bookListContainer.innerHTML = '<p class="col-span-full text-center text-danger-red py-10">Could not load books. Check server connection.</p>';
+                showMessage(`Error loading books: ${error.message}`, true);
+                console.error(error);
+            }
+        }
+
+        /**
+         * Attaches event listeners for all book action buttons (Borrow, Return, Edit, Delete).
+         */
+        function attachActionListeners() {
+            bookListContainer.querySelectorAll('button[data-action]').forEach(button => {
+                button.onclick = async (e) => {
+                    const id = e.target.closest('button').dataset.id;
+                    const action = e.target.closest('button').dataset.action;
+
+                    if (action === 'edit') {
+                        // Pre-fill ID and show modal
+                        document.getElementById('update-id').value = id;
+                        document.getElementById('update-id-display').textContent = id;
+                        document.getElementById('update-title').value = '';
+                        document.getElementById('update-author').value = '';
+                        document.getElementById('update-copies').value = '';
+                        document.getElementById('update-book-modal').classList.remove('hidden');
+                        return;
+                    }
+
+                    try {
+                        let result;
+                        let path = `/books/${id}`;
+                        
+                        if (action === 'borrow') {
+                            path += '/borrow';
+                            result = await apiCall('PATCH', path);
+                            showMessage(result.status, false);
+                        } else if (action === 'return') {
+                            path += '/return';
+                            result = await apiCall('PATCH', path);
+                            showMessage(result.status, false);
+                        } else if (action === 'delete') {
+                            if (!confirmDelete(`book with ID ${id}`)) return;
+                            result = await apiCall('DELETE', path);
+                            showMessage(result.status, false);
+                        }
+                        
+                        fetchBooks(); // Refresh list after action
+
+                    } catch (error) {
+                        showMessage(`Action failed for ID ${id}: ${error.message}`, true);
+                        console.error(error);
+                    }
+                };
+            });
+        }
+
+        /**
+         * Handles the confirmation dialog (used instead of window.confirm).
+         */
+        function confirmDelete(item) {
+            const isConfirmed = window.prompt(`Are you sure you want to delete ${item}? Type 'DELETE' to confirm.`) === 'DELETE';
+            if (!isConfirmed) {
+                showMessage('Deletion cancelled.', false);
+            }
+            return isConfirmed;
+        }
+
+        /**
+         * Handles Delete All Books action.
+         */
+        async function deleteAllBooks() {
+            if (!confirmDelete('ALL books')) return;
+
+            try {
+                const result = await apiCall('DELETE', '/books');
+                showMessage(result.status, false);
+                fetchBooks();
+            } catch (error) {
+                showMessage(`Failed to delete all books: ${error.message}`, true);
+                console.error(error);
+            }
+        }
+
+        /**
+         * Handles Add New Book form submission.
+         */
+        document.getElementById('add-book-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('add-title').value;
+            const author = document.getElementById('add-author').value;
+            const copies = parseInt(document.getElementById('add-copies').value);
+
+            // Note: The FastAPI backend calculates the ID, but the Pydantic model requires it.
+            // We use a dummy ID here as the endpoint POST /books/{id} seems to ignore the path ID anyway.
+            const newBook = {
+                id: 9999, // Dummy ID, will be overridden by backend max(keys) + 1
+                title: title,
+                Author: author,
+                available_copies: copies
+            };
+
+            try {
+                const result = await apiCall('POST', '/books/9999', newBook); // Path ID is arbitrary
+                showMessage(result.status, false);
+                e.target.reset();
+                document.getElementById('add-book-modal').classList.add('hidden');
+                fetchBooks();
+            } catch (error) {
+                showMessage(`Failed to add book: ${error.message}`, true);
+                console.error(error);
+            }
+        });
+
+        /**
+         * Handles Update/Patch form submission.
+         */
+        async function handleUpdate(event, isPatch) {
+            event.preventDefault();
+            const id = document.getElementById('update-id').value;
+            const title = document.getElementById('update-title').value;
+            const author = document.getElementById('update-author').value;
+            const copiesStr = document.getElementById('update-copies').value;
+            const copies = copiesStr ? parseInt(copiesStr) : undefined;
+            
+            const updateData = {};
+            if (title) updateData.title = title;
+            if (author) updateData.Author = author;
+            // Only include available_copies if it was explicitly set, and if it's a PUT or if it's a PATCH with a value.
+            if (copiesStr !== "") {
+                updateData.available_copies = copies;
+            }
+
+            // For PUT, we MUST provide all fields according to the new_book Pydantic model.
+            if (!isPatch) {
+                 // Fetch current book data to fill missing fields for a full PUT
+                let currentBook;
+                try {
+                    currentBook = await apiCall('GET', `/books/${id}`);
+                } catch (error) {
+                    showMessage(`Could not fetch current data for PUT: ${error.message}`, true);
+                    return;
+                }
+
+                // If any required field is missing for PUT, use the current book's data
+                const finalPutData = {
+                    id: parseInt(id),
+                    title: updateData.title || currentBook.title,
+                    Author: updateData.Author || currentBook.Author,
+                    available_copies: updateData.available_copies !== undefined ? updateData.available_copies : currentBook.available_copies
+                };
+
+                // Final check to ensure all Pydantic required fields are present
+                if (!finalPutData.title || !finalPutData.Author || finalPutData.available_copies === undefined) {
+                    showMessage("PUT requires Title, Author, and Available Copies. Please fill all fields or use PATCH.", true);
+                    return;
+                }
+
+                try {
+                    const result = await apiCall('PUT', `/books/${id}`, finalPutData);
+                    showMessage(result.status, false);
+                    document.getElementById('update-book-modal').classList.add('hidden');
+                    fetchBooks();
+                } catch (error) {
+                    showMessage(`PUT Update failed: ${error.message}`, true);
+                    console.error(error);
+                }
+
+            } else {
+                // PATCH request (partial update)
+                if (Object.keys(updateData).length === 0) {
+                    showMessage("PATCH requires at least one field to be provided.", true);
+                    return;
+                }
+                
+                // Pydantic model requires ID for PATCH/PUT, let's include it.
+                // The `new_updated_book` model has optional ID, but the Pydantic model expects it in the body.
+                // Although the endpoint doesn't use it, including it for Pydantic consistency.
+                const finalPatchData = { ...updateData, id: parseInt(id) };
+
+                try {
+                    const result = await apiCall('PATCH', `/books/${id}`, finalPatchData);
+                    showMessage(result.status, false);
+                    document.getElementById('update-book-modal').classList.add('hidden');
+                    fetchBooks();
+                } catch (error) {
+                    showMessage(`PATCH Update failed: ${error.message}`, true);
+                    console.error(error);
+                }
+            }
+        }
+
+
+        // Initialize the app by fetching books on load
+        window.onload = fetchBooks;
+
+    </script>
+</body>
+</html>
